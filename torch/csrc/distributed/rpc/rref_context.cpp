@@ -147,6 +147,18 @@ void RRefContext::delUser(
                        const c10::optional<utils::FutureError>& futErr) {
       RRefContext::handleException(futErr);
     });
+
+    confirmedUsers_.erase(forkId);
+  }
+}
+
+void RRefContext::delAllUsers() {
+  for (const auto& user : confirmedUsers_) {
+    auto rref_ptr = user.second.lock();
+    if (rref_ptr == nullptr) {
+      continue;
+    }
+    rref_ptr->tryDel();
   }
 }
 
@@ -353,6 +365,10 @@ void RRefContext::delPendingUser(const ForkId& forkId) {
   TORCH_INTERNAL_ASSERT(
       iter != pendingUsers_.end(),
       "Inconsistent states: attempt to delete a non-exist UserRRef.");
+  confirmedUsers_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(forkId),
+      std::forward_as_tuple(iter->second));
   pendingUsers_.erase(iter);
 }
 
